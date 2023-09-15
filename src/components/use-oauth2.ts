@@ -42,6 +42,8 @@ export const useOAuth2 = <TData = TAuthTokenPayload>(props: TOauth2Props<TData>)
 	const exchangeCodeForTokenServerURL =
 		responseType === 'code' && props.exchangeCodeForTokenServerURL;
 	const exchangeCodeForTokenMethod = responseType === 'code' && props.exchangeCodeForTokenMethod;
+	const exchangeCodeForTokenUseBody =
+		responseType === 'code' && props.exchangeCodeForTokenUseBody;
 
 	const getAuth = useCallback(() => {
 		// 1. Init
@@ -83,21 +85,37 @@ export const useOAuth2 = <TData = TAuthTokenPayload>(props: TOauth2Props<TData>)
 					if (onError) await onError(errorMessage);
 				} else {
 					let payload = message?.data?.payload;
+
 					if (responseType === 'code' && exchangeCodeForTokenServerURL) {
-						const response = await fetch(
-							formatExchangeCodeForTokenServerURL(
-								exchangeCodeForTokenServerURL,
-								clientId,
-								payload?.code,
-								redirectUri,
-								state
-							),
-							{
-								method:
-									exchangeCodeForTokenMethod ||
-									DEFAULT_EXCHANGE_CODE_FOR_TOKEN_METHOD,
-							}
-						);
+						const response = await (exchangeCodeForTokenUseBody
+							? fetch(exchangeCodeForTokenServerURL, {
+									headers: {
+										'Content-Type': 'application/x-www-form-urlencoded',
+									},
+									method:
+										exchangeCodeForTokenMethod ||
+										DEFAULT_EXCHANGE_CODE_FOR_TOKEN_METHOD,
+									body: new URLSearchParams({
+										client_id: clientId,
+										grant_type: 'authorization_code',
+										code: payload?.code,
+										redirect_uri: redirectUri,
+									}),
+							  })
+							: fetch(
+									formatExchangeCodeForTokenServerURL(
+										exchangeCodeForTokenServerURL,
+										clientId,
+										payload?.code,
+										redirectUri,
+										state
+									),
+									{
+										method:
+											exchangeCodeForTokenMethod ||
+											DEFAULT_EXCHANGE_CODE_FOR_TOKEN_METHOD,
+									}
+							  ));
 						payload = await response.json();
 					}
 					setUI({
@@ -149,6 +167,7 @@ export const useOAuth2 = <TData = TAuthTokenPayload>(props: TOauth2Props<TData>)
 		responseType,
 		exchangeCodeForTokenServerURL,
 		exchangeCodeForTokenMethod,
+		exchangeCodeForTokenUseBody,
 		onSuccess,
 		onError,
 		setUI,
